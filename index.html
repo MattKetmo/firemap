@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Firemap</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+  <link href='https://api.tiles.mapbox.com/mapbox.js/v2.1.6/mapbox.css' rel='stylesheet' />
+
+  <style type="text/css">
+    html, body {
+      margin: 0;
+      padding: 0;
+    }
+    #map {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://api.tiles.mapbox.com/mapbox.js/v2.1.6/mapbox.js"></script>
+  <script src="https://cdn.firebase.com/js/client/2.2.3/firebase.js"></script>
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
