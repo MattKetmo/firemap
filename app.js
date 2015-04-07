@@ -113,12 +113,12 @@ map.on('ready', function() {
 // Remove old markers
 setInterval(function() {
   markersRef.limitToFirst(100).once('value', function(snap) {
+    var now = Math.floor(Date.now() / 1000)
+
     snap.forEach(function(childSnapshot) {
       var uuid = childSnapshot.key()
-      var now = Math.floor(Date.now() / 1000)
       if (childSnapshot.val().timestamp < now - 60 * 30) {
-        removePoint(uuid)
-        markersRef.child(myUuid).set(null)
+        markersRef.child(uuid).set(null)
         //markers[uuid] = null
       }
     })
