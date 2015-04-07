@@ -48,6 +48,10 @@ function addPoint(uuid, position) {
   marker.addTo(map)
 
   markers[uuid] = marker;
+
+  map.fitBounds(Object.keys(markers).map(function(uuid) {
+    return markers[uuid].getLatLng()
+  }))
 }
 
 function removePoint(uuid) {
@@ -80,7 +84,7 @@ map.on('ready', function() {
       timestamp: Math.floor(Date.now() / 1000)
     })
 
-    map.panTo([position.coords.latitude, position.coords.longitude])
+    // map.panTo([position.coords.latitude, position.coords.longitude])
   }
 
   function errorCoords() {
