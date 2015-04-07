@@ -56,7 +56,7 @@ map.on('ready', function() {
       // zIndexOffset: (uuid === myUuid ? 1000 : 0),
       icon: L.mapbox.marker.icon({
         'marker-size': 'large',
-        'marker-color': (uuid === myUuid ? '#ff9800' : '#673ab7')
+        'marker-color': (uuid === myUuid ? '#2196f3' : '#ff9800')
       })
     })
     marker.addTo(map)
