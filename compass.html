@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Locat' Me</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+</head>
+<body>
+<p>
+Value = <span id="target"></span>
+</p>
+
+<script>
+var target = document.getElementById("target")
+if (!window.DeviceOrientationEvent) {
+  target.innerHTML = "Not supported."
+}
+
+target.innerHTML = 'init'
+
+window.addEventListener('deviceorientation', devOrientHandler, false)
+
+function devOrientHandler(event) {
+  console.log(event)
+  target.innerHTML = event.alpha
+
+  if (event.webkitCompassHeading) {
+    alpha = event.webkitCompassHeading;
+  }
+  //non iOS
+  else {
+    alpha = event.alpha;
+  }
+  var locationIcon = myLocationMarker.get('icon');
+  locationIcon.rotation = 360 - alpha;
+}
+
+</script>
+</body>
+</html>

@@ -1,7 +1,9 @@
-// Config
-L.mapbox.accessToken = config.mapbox.accessToken;
+(function() {
+'use strict';
 
+//
 // Utilities
+//
 function guid() {
   function s4() {
     return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
@@ -9,15 +11,38 @@ function guid() {
   return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
 }
 
-// Get current UUID
-var myUuid = localStorage.getItem('myUuid');
+function now() {
+  return Math.floor(Date.now() / 1000);
+}
+
+//
+// Environment
+//
+var myUuid;
+var mapId;
+
+mapId = location.hash.replace(/^#/, '');
+if (!mapId) {
+  mapId = (Math.random() + 1).toString(36).substring(2, 12);
+  location.hash = mapId;
+}
+
+myUuid = localStorage.getItem('myUuid');
 if (!myUuid) {
   myUuid = guid();
   localStorage.setItem('myUuid', myUuid);
 }
 
-// Initialize map
-var map = L.mapbox.map('map', config.mapbox.mapId, {
+
+//
+// Mapbox
+//
+var map;
+var markers = {};
+
+L.mapbox.accessToken = config.mapbox.accessToken;
+
+map = L.mapbox.map('map', config.mapbox.mapId, {
   zoomControl: false,
   attributionControl: false,
   tileLayer: {
@@ -25,26 +50,47 @@ var map = L.mapbox.map('map', config.mapbox.mapId, {
   }
 }).setView([48.861920, 2.341755], 18)
 
-// Stupid routing
-var mapId = location.hash.replace(/^#/, '');
-if (!mapId) {
-  mapId = (Math.random() + 1).toString(36).substring(2, 12);
-  location.hash = mapId;
-}
+// map.on('ready', function() { console.log('map.ready') });
 
-// Firebase
-var firebase = new Firebase('https://' + config.firebase + '.firebaseio.com/');
-var markersRef = firebase.child('maps/' + mapId);
-var markers = {};
+// https://github.com/bbecquet/Leaflet.PolylineDecorator
+L.RotatedMarker = L.Marker.extend({
+  options: { angle: 0 },
+  _setPos: function(pos) {
+    L.Marker.prototype._setPos.call(this, pos);
+    if (L.DomUtil.TRANSFORM) {
+      // use the CSS transform rule if available
+      this._icon.style[L.DomUtil.TRANSFORM] += ' rotate(' + this.options.angle + 'deg)';
+    } else if (L.Browser.ie) {
+      // fallback for IE6, IE7, IE8
+      var rad = this.options.angle * L.LatLng.DEG_TO_RAD,
+      costheta = Math.cos(rad),
+      sintheta = Math.sin(rad);
+      this._icon.style.filter += ' progid:DXImageTransform.Microsoft.Matrix(sizingMethod=\'auto expand\', M11=' +
+        costheta + ', M12=' + (-sintheta) + ', M21=' + sintheta + ', M22=' + costheta + ')';
+    }
+  }
+});
+L.rotatedMarker = function(pos, options) {
+  return new L.RotatedMarker(pos, options);
+};
 
-function addPoint(uuid, position) {
-  var marker = L.marker([position.coords.latitude, position.coords.longitude], {
-    // zIndexOffset: (uuid === myUuid ? 1000 : 0),
-    icon: L.mapbox.marker.icon({
-      'marker-size': 'large',
-      'marker-color': (uuid === myUuid ? '#2196f3' : '#ff9800')
-    })
+function addPoint(uuid, point) {
+  var color = (uuid === myUuid ? '#2196f3' : '#ff9800')
+  var icon = '<svg width="70" height="70" xmlns="http://www.w3.org/2000/svg">'
+    + '<path fill="#fff" d="m35,18.000002c-9.400002,0 -17,7.599995 -17,16.999998s7.599998,17 17,17s17,-7.599998 17,-17s-7.599998,-16.999998 -17,-16.999998zm0,30.999998c-7.700001,0 -14,-6.299999 -14,-14s6.299999,-13.999998 14,-13.999998s14,6.299997 14,13.999998s-6.300003,14 -14,14z"/>'
+    + '<circle fill="' + color + '" stroke="null" r="14.031405" cy="35.000002" cx="34.999999"/>'
+    + (point.orientation ? '<polygon fill="' + color + '" points="47.699997901916504,16.983383178710938 47.000000953674316,17.68338394165039 35.000000953674316,12.7833890914917 23.00000286102295,17.68338394165039 22.300002098083496,16.983383178710938 35.000000953674316,4.28338623046875" />' : '')
+    + '</svg>'
+
+  var marker = L.rotatedMarker([point.coords.latitude, point.coords.longitude], {
+    //zIndexOffset: (uuid === myUuid ? 1000 : 0),
+    icon: L.icon({
+      iconUrl: 'data:image/svg+xml;base64,' + btoa(icon),
+      iconSize: [40, 40],
+    }),
   })
+
+  marker.options.angle = point.orientation;
   marker.addTo(map)
 
   markers[uuid] = marker;
@@ -55,76 +101,130 @@ function addPoint(uuid, position) {
 }
 
 function removePoint(uuid) {
-  map.removeLayer(markers[uuid])
-  //markers[uuid] = null
+  if (markers[uuid]) {
+    map.removeLayer(markers[uuid])
+    //markers[uuid] = null
+  }
 }
 
-function updatePoint(uuid, position) {
+function updatePoint(uuid, point) {
   var marker = markers[uuid]
-  marker.setLatLng([position.coords.latitude, position.coords.longitude])
+  marker.options.angle = point.orientation
+  marker.setLatLng([point.coords.latitude, point.coords.longitude])
 }
 
-function putPoint(uuid, position) {
-  if (markers[uuid])
-    updatePoint(uuid, position)
-  else
-    addPoint(uuid, position)
+function putPoint(uuid, point) {
+  if (markers[uuid]) {
+    updatePoint(uuid, point)
+  } else {
+    addPoint(uuid, point)
+  }
 }
 
+
+//
+// Firebase
+//
+var endpoint;
+
+endpoint = new Firebase('https://' + config.firebase + '.firebaseio.com/maps/' + mapId);
+
+endpoint.on('child_added', function(childSnapshot) {
+  var uuid = childSnapshot.key()
+  var point = childSnapshot.val()
+
+  addPoint(uuid, point)
+})
+
+endpoint.on('child_changed', function(childSnapshot) {
+  var uuid = childSnapshot.key()
+  var point = childSnapshot.val()
+
+  putPoint(uuid, point)
+})
+
+endpoint.on('child_removed', function(oldChildSnapshot) {
+  var uuid = oldChildSnapshot.key()
+
+  removePoint(uuid)
+})
+
+//
+// Tracking
+//
 var watchPositionId;
-map.on('ready', function() {
-  function successCoords(position) {
-    if (!position.coords) return
+var currentCoords = null;
+var currentOrientation = null;
 
-    markersRef.child(myUuid).set({
-      coords: {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      },
-      timestamp: Math.floor(Date.now() / 1000)
-    })
+function pushCurrentStatus() {
+  if (!currentCoords) return
 
-    // map.panTo([position.coords.latitude, position.coords.longitude])
+  endpoint.child(myUuid).set({
+    coords: {
+      latitude: currentCoords.latitude,
+      longitude: currentCoords.longitude,
+    },
+    orientation: currentOrientation,
+    timestamp: now()
+  })
+}
+pushCurrentStatus = _.throttle(pushCurrentStatus, 50)
+
+if (navigator.geolocation) {
+  watchPositionId = navigator.geolocation.watchPosition(successWatchPosition, failWatchPosition);
+}
+
+function successWatchPosition(position) {
+  if (!position.coords) return
+
+  currentCoords = position.coords
+
+  pushCurrentStatus()
+  putPoint(myUuid, {coords: currentCoords, orientation: currentOrientation})
+}
+
+function failWatchPosition() {
+  alert('Fail to get your location')
+}
+
+
+if (window.DeviceOrientationEvent) {
+  window.addEventListener('deviceorientation', deviceOrientationHandler, false)
+}
+
+function deviceOrientationHandler(event) {
+  var alpha;
+
+  if (event.webkitCompassHeading) {
+    alpha = event.webkitCompassHeading;
+  } else {
+    alpha = event.alpha;
   }
 
-  function errorCoords() {
-    console.log('Unable to get current position')
-  }
+  if (!alpha) return
 
-  watchPositionId = navigator.geolocation.watchPosition(successCoords, errorCoords);
+  currentOrientation = 360 - alpha
 
-  markersRef.on('child_added', function(childSnapshot) {
-    var uuid = childSnapshot.key()
-    var position = childSnapshot.val()
+  pushCurrentStatus()
+  putPoint(myUuid, {coords: currentCoords, orientation: currentOrientation})
+}
 
-    addPoint(uuid, position)
-  })
 
-  markersRef.on('child_changed', function(childSnapshot) {
-    var uuid = childSnapshot.key()
-    var position = childSnapshot.val()
-
-    putPoint(uuid, position)
-  })
-
-  markersRef.on('child_removed', function(oldChildSnapshot) {
-    var uuid = oldChildSnapshot.key()
-
-    removePoint(uuid)
-  })
-});
-
+//
 // Remove old markers
+//
 setInterval(function() {
-  markersRef.limitToFirst(100).once('value', function(snap) {
+  endpoint.limitToFirst(100).once('value', function(snap) {
     var now = Math.floor(Date.now() / 1000)
 
     snap.forEach(function(childSnapshot) {
       var uuid = childSnapshot.key()
       if (childSnapshot.val().timestamp < now - 60 * 30) {
-        markersRef.child(uuid).set(null)
+        endpoint.child(uuid).set(null)
         //markers[uuid] = null
       }
     })
   })
 }, 5000);
+
+})();
