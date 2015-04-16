@@ -1,5 +1,5 @@
 // Config
-L.mapbox.accessToken = config.mapbox;
+L.mapbox.accessToken = config.mapbox.accessToken;
 
 // Utilities
 function guid() {
@@ -17,7 +17,7 @@ if (!myUuid) {
 }
 
 // Initialize map
-var map = L.mapbox.map('map', 'examples.map-i86nkdio', {
+var map = L.mapbox.map('map', config.mapbox.mapId, {
   zoomControl: false,
   attributionControl: false,
   tileLayer: {

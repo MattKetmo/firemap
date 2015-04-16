@@ -1,4 +1,7 @@
 var config = {
   firebase: '',
-  mapbox: '',
+  mapbox: {
+      accessToken: '',
+      mapId: '',
+  }
 }
