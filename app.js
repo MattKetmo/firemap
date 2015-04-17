@@ -27,6 +27,11 @@ if (!mapId) {
   location.hash = mapId;
 }
 
+if (typeof localStorage == 'undefined') {
+  document.getElementById('map').innerHTML = 'Sorry but your browser is not supported'
+  return
+}
+
 myUuid = localStorage.getItem('myUuid');
 if (!myUuid) {
   myUuid = guid();
