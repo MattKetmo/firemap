@@ -44,6 +44,7 @@ if (!myUuid) {
 //
 var map;
 var markers = {};
+var mapZooming = false;
 
 L.mapbox.accessToken = config.mapbox.accessToken;
 
@@ -79,6 +80,13 @@ L.rotatedMarker = function(pos, options) {
   return new L.RotatedMarker(pos, options);
 };
 
+map.on('zoomstart', function() {
+  mapZooming = true
+})
+map.on('zoomend', function() {
+  mapZooming = false
+})
+
 function addPoint(uuid, point) {
   var color = (uuid === myUuid ? '#2196f3' : '#ff9800')
   var icon = '<svg width="70" height="70" xmlns="http://www.w3.org/2000/svg">'
@@ -113,6 +121,14 @@ function removePoint(uuid) {
 }
 
 function updatePoint(uuid, point) {
+  // Avoid clipping effect when zooming map + updating point at the same time.
+  if (mapZooming) {
+    map.once('zoomend', function() {
+      updatePoint(uuid, point)
+    })
+    return
+  }
+
   var marker = markers[uuid]
   marker.options.angle = point.orientation
   marker.setLatLng([point.coords.latitude, point.coords.longitude])
