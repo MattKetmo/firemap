@@ -95,10 +95,10 @@ function addPoint(uuid, point) {
     }),
   })
 
+  markers[uuid] = marker;
+
   marker.options.angle = point.orientation;
   marker.addTo(map)
-
-  markers[uuid] = marker;
 
   map.fitBounds(Object.keys(markers).map(function(uuid) {
     return markers[uuid].getLatLng()
@@ -138,12 +138,16 @@ endpoint.on('child_added', function(childSnapshot) {
   var uuid = childSnapshot.key()
   var point = childSnapshot.val()
 
+  if (uuid === myUuid) return
+
   addPoint(uuid, point)
 })
 
 endpoint.on('child_changed', function(childSnapshot) {
   var uuid = childSnapshot.key()
   var point = childSnapshot.val()
+
+  if (uuid === myUuid) return
 
   putPoint(uuid, point)
 })
