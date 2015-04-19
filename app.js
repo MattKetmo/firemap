@@ -87,20 +87,37 @@ map.on('zoomend', function() {
   mapZooming = false
 })
 
-function addPoint(uuid, point) {
-  var color = (uuid === myUuid ? '#2196f3' : '#ff9800')
-  var icon = '<svg width="70" height="70" xmlns="http://www.w3.org/2000/svg">'
+function createIcon(uuid, point) {
+  var color
+  var svg;
+
+  if (uuid === myUuid) {
+    // Own marker
+    color = '#2196f3'
+  } else if (point.timestamp < now() - 60) {
+    // Inactive marker
+    color = '#bdbdbd'
+  } else {
+    // Others marker
+    color = '#ff9800'
+  }
+
+  var svg = '<svg width="70" height="70" xmlns="http://www.w3.org/2000/svg">'
     + '<path fill="#fff" d="m35,18.000002c-9.400002,0 -17,7.599995 -17,16.999998s7.599998,17 17,17s17,-7.599998 17,-17s-7.599998,-16.999998 -17,-16.999998zm0,30.999998c-7.700001,0 -14,-6.299999 -14,-14s6.299999,-13.999998 14,-13.999998s14,6.299997 14,13.999998s-6.300003,14 -14,14z"/>'
     + '<circle fill="' + color + '" stroke="null" r="14.031405" cy="35.000002" cx="34.999999"/>'
     + (point.orientation ? '<polygon fill="' + color + '" points="47.699997901916504,16.983383178710938 47.000000953674316,17.68338394165039 35.000000953674316,12.7833890914917 23.00000286102295,17.68338394165039 22.300002098083496,16.983383178710938 35.000000953674316,4.28338623046875" />' : '')
     + '</svg>'
 
+  return L.icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa(svg),
+    iconSize: [40, 40],
+  })
+}
+
+function addPoint(uuid, point) {
   var marker = L.rotatedMarker([point.coords.latitude, point.coords.longitude], {
     //zIndexOffset: (uuid === myUuid ? 1000 : 0),
-    icon: L.icon({
-      iconUrl: 'data:image/svg+xml;base64,' + btoa(icon),
-      iconSize: [40, 40],
-    }),
+    icon: createIcon(uuid, point)
   })
 
   markers[uuid] = marker;
@@ -130,6 +147,9 @@ function updatePoint(uuid, point) {
   }
 
   var marker = markers[uuid]
+
+  marker.setIcon(createIcon(uuid, point));
+
   marker.options.angle = point.orientation
   marker.setLatLng([point.coords.latitude, point.coords.longitude])
 }
@@ -230,7 +250,7 @@ function failWatchPosition() {
 
 
 if (window.DeviceOrientationEvent) {
-  window.addEventListener('deviceorientation', deviceOrientationHandler, false)
+  window.addEventListener('deviceorientation', deviceOrientationHandler, true)
 }
 
 function deviceOrientationHandler(event) {
@@ -260,9 +280,14 @@ setInterval(function() {
 
     snap.forEach(function(childSnapshot) {
       var uuid = childSnapshot.key()
+      var point = childSnapshot.val()
+
+      if (uuid === myUuid) return
+
       if (childSnapshot.val().timestamp < now - 60 * 30) {
         endpoint.child(uuid).set(null)
-        //markers[uuid] = null
+      } else {
+        updatePoint(uuid, point)
       }
     })
   })
