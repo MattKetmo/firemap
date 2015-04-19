@@ -196,7 +196,23 @@ function pushCurrentStatus() {
 pushCurrentStatus = _.throttle(pushCurrentStatus, 50)
 
 if (navigator.geolocation) {
-  watchPositionId = navigator.geolocation.watchPosition(successWatchPosition, failWatchPosition);
+  setTimeout(function() {
+    watchPositionId = navigator.geolocation.watchPosition(
+      successWatchPosition,
+      failWatchPosition,
+      {enableHighAccuracy: false}
+    )
+  }, 0)
+
+  setTimeout(function() {
+    navigator.geolocation.clearWatch(watchPositionId)
+
+    watchPositionId = navigator.geolocation.watchPosition(
+      successWatchPosition,
+      failWatchPosition,
+      {enableHighAccuracy: true}
+    )
+  }, 5000)
 }
 
 function successWatchPosition(position) {
